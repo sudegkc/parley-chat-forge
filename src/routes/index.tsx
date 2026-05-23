@@ -32,16 +32,37 @@ export const Route = createFileRoute("/")({
   component: ParleyDemo,
 });
 
+type EditField = "product" | "quantity" | "vibe" | "location" | "expiry";
+
 type Stage =
   | "intro"
   | "awaiting_request"
   | "extracted"
   | "awaiting_brand"
   | "awaiting_expiry"
-  | "confirming"
+  | "awaiting_vibe"
+  | "reviewing"
+  | "awaiting_edit_product"
+  | "awaiting_edit_quantity"
+  | "awaiting_edit_vibe"
+  | "awaiting_edit_location"
+  | "awaiting_edit_expiry"
   | "matched"
   | "dispatched"
   | "analytics_ready";
+
+function suggestVibesFor(product: string | null, message: string): string[] {
+  const t = `${product ?? ""} ${message}`.toLowerCase();
+  if (/latte|coffee|matcha|cafe|espresso|cappuccino/.test(t))
+    return ["study mode", "cafe lovers", "university students", "cozy mornings", "productivity", "aesthetic girls"];
+  if (/book|read|novel/.test(t))
+    return ["bookworms", "cozy readers", "literary", "aesthetic", "students", "quiet mornings"];
+  if (/gym|workout|fitness|protein|run/.test(t))
+    return ["fitness", "gym rats", "morning routine", "wellness", "athletes", "early birds"];
+  if (/pizza|burger|food|meal|lunch|dinner/.test(t))
+    return ["foodies", "students", "locals", "late night", "friends night", "creators"];
+  return ["students", "creatives", "foodies", "locals", "aesthetic", "productivity"];
+}
 
 const now = () => Date.now();
 const mid = () => nanoid(8);
