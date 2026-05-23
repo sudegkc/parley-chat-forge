@@ -224,7 +224,7 @@ function ParleyDemo() {
           sender: "bot",
           kind: "text",
           ts: now(),
-          text: personalMessage(u),
+          text: personalMessage(u, campaignRef.current),
         });
         setTimeout(() => {
           const c = campaignRef.current;
