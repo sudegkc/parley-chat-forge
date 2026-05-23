@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { nanoid } from "nanoid";
 import { PhoneFrame } from "@/components/PhoneFrame";
@@ -250,12 +250,20 @@ function ParleyDemo() {
             <div className="text-[11px] text-muted-foreground">Telegram bot demo</div>
           </div>
         </div>
-        <button
-          onClick={reset}
-          className="rounded-full border border-border bg-card px-3.5 py-1.5 text-xs font-medium text-foreground transition hover:bg-muted"
-        >
-          Reset demo
-        </button>
+        <div className="flex items-center gap-2">
+          <Link
+            to="/login"
+            className="rounded-full border border-border bg-card px-3.5 py-1.5 text-xs font-medium text-foreground transition hover:bg-muted"
+          >
+            Business login
+          </Link>
+          <button
+            onClick={reset}
+            className="rounded-full border border-border bg-card px-3.5 py-1.5 text-xs font-medium text-foreground transition hover:bg-muted"
+          >
+            Reset demo
+          </button>
+        </div>
       </header>
 
       <h1 className="sr-only">Parley Telegram bot demo</h1>
