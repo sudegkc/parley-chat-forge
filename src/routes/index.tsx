@@ -96,23 +96,32 @@ function ParleyDemo() {
     expiry: null,
   });
   const extract = useServerFn(extractCampaign);
+  const infer = useServerFn(inferVibe);
+  const originalMessageRef = useRef<string>("");
 
   const askExpiry = async () => {
     await botSay("One thing missing — when should this campaign expire?", 500);
     setStage("awaiting_expiry");
   };
 
-  const confirmCampaign = async () => {
-    const c = campaignRef.current;
-    const parts = [
-      c.quantity ? `${c.quantity} ${c.product ?? "items"}` : c.product ?? "items",
-      c.audience ? `for ${c.audience}` : null,
-      c.vibe.length ? `${c.vibe.join(" / ")} vibe` : null,
-      c.location ?? null,
-      c.expiry ? `expires ${c.expiry}` : null,
-    ].filter(Boolean);
-    await botSay(`Perfect. Campaign: ${parts.join(", ")}. Confirm to launch?`, 700);
-    setStage("confirming");
+  const goToVibeStep = async () => {
+    await botSay(
+      "Who should this reward reach? Pick a vibe or skip if you want Parley to infer it.",
+      700,
+    );
+    setStage("awaiting_vibe");
+  };
+
+  const goToReview = async () => {
+    appendSponsor({
+      id: mid(),
+      sender: "bot",
+      kind: "extraction",
+      data: campaignRef.current,
+      ts: now(),
+    });
+    await botSay("Before I mint the QR rewards, do you want to change anything?", 700);
+    setStage("reviewing");
   };
 
   const appendSponsor = (m: Message) => setSponsorMsgs((p) => [...p, m]);
@@ -136,6 +145,7 @@ function ParleyDemo() {
     appendSponsor({ id: mid(), sender: "sponsor", kind: "text", text, ts: now() });
 
     if (stage === "intro" || stage === "awaiting_request") {
+      originalMessageRef.current = text;
       setStage("extracted");
       await botSay("Got it — reading that…", 500);
       setSponsorTyping(true);
@@ -152,7 +162,7 @@ function ParleyDemo() {
       }
 
       const c = result.campaign;
-      const campaign: Campaign = {
+      campaignRef.current = {
         brand: c.brand,
         product: c.product,
         quantity: c.quantity,
@@ -161,16 +171,15 @@ function ParleyDemo() {
         location: c.location,
         expiry: c.expiry,
       };
-      campaignRef.current = campaign;
       appendSponsor({
         id: mid(),
         sender: "bot",
         kind: "extraction",
-        data: campaign,
+        data: campaignRef.current,
         ts: now(),
       });
 
-      if (!campaign.brand) {
+      if (!campaignRef.current.brand) {
         await botSay(
           "What brand or business name should this campaign run under?",
           500,
@@ -179,31 +188,44 @@ function ParleyDemo() {
         return;
       }
 
-      if (!campaign.expiry) {
+      if (!campaignRef.current.expiry) {
         await askExpiry();
         return;
       }
 
-      await confirmCampaign();
+      await goToVibeStep();
       return;
     }
 
     if (stage === "awaiting_brand") {
       campaignRef.current = { ...campaignRef.current, brand: text };
-      appendSponsor({
-        id: mid(),
-        sender: "bot",
-        kind: "extraction",
-        data: campaignRef.current,
-        ts: now(),
-      });
-      await askExpiry();
+      if (!campaignRef.current.expiry) {
+        await askExpiry();
+        return;
+      }
+      await goToVibeStep();
       return;
     }
 
     if (stage === "awaiting_expiry") {
       campaignRef.current = { ...campaignRef.current, expiry: text };
-      await confirmCampaign();
+      await goToVibeStep();
+      return;
+    }
+
+    if (stage.startsWith("awaiting_edit_")) {
+      const field = stage.replace("awaiting_edit_", "") as EditField;
+      const c = campaignRef.current;
+      if (field === "quantity") {
+        const n = parseInt(text.replace(/\D/g, ""), 10);
+        campaignRef.current = { ...c, quantity: Number.isFinite(n) && n > 0 ? n : c.quantity };
+      } else if (field === "vibe") {
+        const tags = text.split(/[,/]+/).map((s) => s.trim()).filter(Boolean);
+        campaignRef.current = { ...c, vibe: tags.length ? tags : c.vibe };
+      } else {
+        campaignRef.current = { ...c, [field]: text };
+      }
+      await goToReview();
       return;
     }
 
@@ -215,6 +237,51 @@ function ParleyDemo() {
       await botSay("I'll keep an eye on the campaign and ping you with updates.", 600);
     }
   };
+
+  const handlePickVibe = async (v: string) => {
+    appendSponsor({ id: mid(), sender: "sponsor", kind: "text", text: `Vibe: ${v}`, ts: now() });
+    campaignRef.current = { ...campaignRef.current, vibe: [v] };
+    await goToReview();
+  };
+
+  const handleSkipVibe = async () => {
+    appendSponsor({ id: mid(), sender: "sponsor", kind: "text", text: "Skip vibe", ts: now() });
+    await botSay("On it — inferring the vibe from your message…", 400);
+    setSponsorTyping(true);
+    try {
+      const res = await infer({
+        data: {
+          message: originalMessageRef.current,
+          product: campaignRef.current.product,
+        },
+      });
+      campaignRef.current = { ...campaignRef.current, vibe: res.vibe };
+    } catch {
+      // keep whatever vibe we already had
+    }
+    setSponsorTyping(false);
+    await goToReview();
+  };
+
+  const handleEdit = async (field: EditField) => {
+    const labels: Record<EditField, string> = {
+      product: "product",
+      quantity: "quantity (a number)",
+      vibe: "target vibe (comma-separated)",
+      location: "location",
+      expiry: "expiry",
+    };
+    appendSponsor({
+      id: mid(),
+      sender: "sponsor",
+      kind: "text",
+      text: `Edit ${field}`,
+      ts: now(),
+    });
+    await botSay(`Sure — what's the new ${labels[field]}?`, 400);
+    setStage(`awaiting_edit_${field}` as Stage);
+  };
+
 
   const handleConfirm = async () => {
     appendSponsor({ id: mid(), sender: "sponsor", kind: "text", text: "Confirm 🚀", ts: now() });
