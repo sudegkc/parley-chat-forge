@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { Sender } from "@/lib/parley-types";
 
 type Props = {
@@ -6,6 +6,13 @@ type Props = {
   children: ReactNode;
   ts?: number;
 };
+
+function formatTime(ts: number) {
+  const d = new Date(ts);
+  const h = d.getHours().toString().padStart(2, "0");
+  const m = d.getMinutes().toString().padStart(2, "0");
+  return `${h}:${m}`;
+}
 
 export function MessageBubble({ sender, children, ts }: Props) {
   if (sender === "system") {
