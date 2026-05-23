@@ -463,8 +463,18 @@ function ParleyDemo() {
                   onSend={() => handleSponsorSend()}
                   chips={chips}
                   onChip={(c) => handleSponsorSend(c)}
-                  showConfirm={stage === "confirming"}
+                  mode={
+                    stage === "awaiting_vibe"
+                      ? "vibe"
+                      : stage === "reviewing"
+                        ? "review"
+                        : "input"
+                  }
+                  vibeSuggestions={vibeSuggestions}
+                  onPickVibe={handlePickVibe}
+                  onSkipVibe={handleSkipVibe}
                   onConfirm={handleConfirm}
+                  onEdit={handleEdit}
                 />
               }
             />
