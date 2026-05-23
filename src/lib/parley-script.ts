@@ -2,7 +2,7 @@ import { nanoid } from "nanoid";
 import type { Campaign, MatchedUser } from "./parley-types";
 
 export const SUGGESTED_PROMPT =
-  "I want to give 100 free iced matchas to study girls in Turin.";
+  "I wanna give 10 iced lattes to study girls in Turin.";
 
 export const CAMPAIGN_DRAFT: Campaign = {
   brand: "Kioko Matcha Bar",
