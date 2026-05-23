@@ -8,11 +8,12 @@ export type Message =
   | { id: string; sender: Sender; kind: "qr"; reward: Reward; ts: number };
 
 export type Campaign = {
-  brand: string;
-  product: string;
-  quantity: number;
+  brand: string | null;
+  product: string | null;
+  quantity: number | null;
   vibe: string[];
-  location: string;
+  audience: string | null;
+  location: string | null;
   expiry: string | null;
 };
 
