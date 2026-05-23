@@ -1,25 +1,26 @@
 ## Goal
+Let you view the Business profile form (the same UI as the logged-in dashboard) without signing in, pre-filled with realistic sample data.
 
-Make the QR code in the user's reward chat auto-claim when "scanned" in the demo, instead of requiring a separate "Claim reward" button tap.
+## Approach
+Create a new public route `/dashboard-preview` that renders the exact same form UI as `/dashboard`, but:
+- Skips the auth check and Supabase data fetch
+- Pre-fills the form with sample data
+- Replaces "Save changes" with a disabled "Save changes (preview)" button
+- Shows a small "Preview mode" badge in the header instead of the user email / Sign out
 
-## Behavior change
+## Sample data used
+- Business name: Brew & Bean Café
+- Owner name: Sarah Chen
+- Email: sarah@brewandbean.com
+- Phone: +1 415 555 0123
+- Category: Café & Bakery
+- Website: https://brewandbean.com
+- Telegram ID: @brewandbean
+- Address: 482 Valencia Street, San Francisco, CA 94103
 
-In `QRRewardCard`, the QR itself becomes the action surface:
+## Files
+- **New** `src/routes/dashboard-preview.tsx` — public route, reuses the same layout, grid, and `Field` helper as `dashboard.tsx`, no Supabase calls.
 
-- The QR canvas is wrapped in a button. Tapping/clicking it simulates a scan.
-- On scan: the card immediately transitions to a "Claimed ✓" state (QR dimmed, big check overlay, subtle success animation), and `onClaim` fires so the sponsor analytics update as today.
-- The separate "Claim reward" button at the bottom of the card is removed.
-- A small hint label under the QR ("Tap QR to scan") makes the interaction discoverable in the demo.
-- Already-claimed cards are non-interactive.
-
-No changes to the conversation engine, analytics flow, sponsor side, or scripted timings — `onClaim(msgId)` still drives the same state updates in `src/routes/index.tsx`.
-
-## Files touched
-
-- `src/components/QRRewardCard.tsx` — restructure card: clickable QR, remove bottom button, add claimed overlay + hint text. Keep props (`reward`, `claimed`, `onClaim`) unchanged so callers are untouched.
-
-## Out of scope
-
-- No real camera/scan integration (still a simulated tap).
-- No changes to sponsor panel, analytics card, or matching logic.
-- No copy changes elsewhere in the bot script.
+## Notes
+- No changes to auth, the real dashboard, or the database.
+- After approval, open `/dashboard-preview` in the preview so you can see it immediately.
