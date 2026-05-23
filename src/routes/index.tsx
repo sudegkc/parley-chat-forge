@@ -181,16 +181,8 @@ function ParleyDemo() {
     }
 
     if (stage === "awaiting_expiry") {
-      expiryRef.current = text;
-      const c = campaignRef.current;
-      const parts = [
-        c.quantity ? `${c.quantity} ${c.product || "items"}` : c.product || "items",
-        c.vibe.length ? `${c.vibe.join(" / ")} vibe` : null,
-        c.location || null,
-        `expires ${text}`,
-      ].filter(Boolean);
-      await botSay(`Perfect. Campaign: ${parts.join(", ")}. Confirm to launch?`, 700);
-      setStage("confirming");
+      campaignRef.current = { ...campaignRef.current, expiry: text };
+      await confirmCampaign();
       return;
     }
 
