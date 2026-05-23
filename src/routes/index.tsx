@@ -235,6 +235,15 @@ function ParleyDemo() {
       return;
     }
 
+    if (stage === "awaiting_custom_vibe") {
+      const tags = text.split(/[,/]+/).map((s) => s.trim()).filter(Boolean);
+      if (tags.length) {
+        campaignRef.current = { ...campaignRef.current, vibe: tags };
+      }
+      await goToReview();
+      return;
+    }
+
     if (stage.startsWith("awaiting_edit_")) {
       const field = stage.replace("awaiting_edit_", "") as EditField;
       const c = campaignRef.current;
