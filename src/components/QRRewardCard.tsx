@@ -63,7 +63,7 @@ export function QRRewardCard({ reward, claimed, onClaim }: Props) {
         <div className="text-[10px] text-muted-foreground">
           {claimed ? "Claimed ✓" : "Tap QR to scan"}
         </div>
-        <div className="text-[10px] text-muted-foreground">Expires {reward.expiry}</div>
+        <div className="text-[10px] text-muted-foreground">Expires {formatExpiry(reward.expiry)}</div>
       </div>
     </div>
   );
