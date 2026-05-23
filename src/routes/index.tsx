@@ -1,16 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { nanoid } from "nanoid";
 import { PhoneFrame } from "@/components/PhoneFrame";
 import { ChatWindow } from "@/components/ChatWindow";
-import type { Message, MatchedUser, Reward } from "@/lib/parley-types";
+import type { Campaign, Message, MatchedUser, Reward } from "@/lib/parley-types";
 import {
-  CAMPAIGN_DRAFT,
   MOCK_USERS,
   SUGGESTED_PROMPT,
   newRewardCode,
   personalMessage,
 } from "@/lib/parley-script";
+import { extractCampaign } from "@/lib/parley.functions";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -35,6 +36,7 @@ type Stage =
   | "intro"
   | "awaiting_request"
   | "extracted"
+  | "awaiting_brand"
   | "awaiting_expiry"
   | "confirming"
   | "matched"
