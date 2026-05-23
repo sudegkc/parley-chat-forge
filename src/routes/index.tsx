@@ -11,7 +11,7 @@ import {
   newRewardCode,
   personalMessage,
 } from "@/lib/parley-script";
-import { extractCampaign, inferVibe } from "@/lib/parley.functions";
+import { extractCampaign, inferVibe, suggestVibes } from "@/lib/parley.functions";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -41,6 +41,7 @@ type Stage =
   | "awaiting_brand"
   | "awaiting_expiry"
   | "awaiting_vibe"
+  | "awaiting_custom_vibe"
   | "reviewing"
   | "awaiting_edit_product"
   | "awaiting_edit_quantity"
@@ -97,7 +98,10 @@ function ParleyDemo() {
   });
   const extract = useServerFn(extractCampaign);
   const infer = useServerFn(inferVibe);
+  const suggest = useServerFn(suggestVibes);
   const originalMessageRef = useRef<string>("");
+  const [vibeSuggestions, setVibeSuggestions] = useState<string[]>([]);
+  const [vibeLoading, setVibeLoading] = useState(false);
 
   const askExpiry = async () => {
     await botSay("One thing missing — when should this campaign expire?", 500);
@@ -106,10 +110,28 @@ function ParleyDemo() {
 
   const goToVibeStep = async () => {
     await botSay(
-      "Who should this reward reach? Pick a vibe or skip if you want Parley to infer it.",
+      "Who should this reward reach? Pick a vibe, write your own, or skip and let Parley infer it.",
       700,
     );
     setStage("awaiting_vibe");
+    setVibeLoading(true);
+    setVibeSuggestions([]);
+    try {
+      const c = campaignRef.current;
+      const res = await suggest({
+        data: {
+          message: originalMessageRef.current,
+          product: c.product,
+          audience: c.audience,
+          location: c.location,
+        },
+      });
+      setVibeSuggestions(res.suggestions);
+    } catch {
+      setVibeSuggestions(suggestVibesFor(campaignRef.current.product, originalMessageRef.current));
+    } finally {
+      setVibeLoading(false);
+    }
   };
 
   const goToReview = async () => {
@@ -213,6 +235,15 @@ function ParleyDemo() {
       return;
     }
 
+    if (stage === "awaiting_custom_vibe") {
+      const tags = text.split(/[,/]+/).map((s) => s.trim()).filter(Boolean);
+      if (tags.length) {
+        campaignRef.current = { ...campaignRef.current, vibe: tags };
+      }
+      await goToReview();
+      return;
+    }
+
     if (stage.startsWith("awaiting_edit_")) {
       const field = stage.replace("awaiting_edit_", "") as EditField;
       const c = campaignRef.current;
@@ -261,6 +292,12 @@ function ParleyDemo() {
     }
     setSponsorTyping(false);
     await goToReview();
+  };
+
+  const handleCustomVibe = async () => {
+    appendSponsor({ id: mid(), sender: "sponsor", kind: "text", text: "Custom vibe", ts: now() });
+    await botSay("Describe the vibe in your own words.", 400);
+    setStage("awaiting_custom_vibe");
   };
 
   const handleEdit = async (field: EditField) => {
@@ -398,11 +435,8 @@ function ParleyDemo() {
     return [];
   }, [stage]);
 
-  const vibeSuggestions = useMemo(
-    () => suggestVibesFor(campaignRef.current.product, originalMessageRef.current),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [stage],
-  );
+
+
 
   const activeUser = matched.find((u) => u.id === activeUserId) ?? null;
   const activeMessages = activeUserId ? userChats[activeUserId] ?? [] : [];
@@ -471,8 +505,10 @@ function ParleyDemo() {
                         : "input"
                   }
                   vibeSuggestions={vibeSuggestions}
+                  vibeLoading={vibeLoading}
                   onPickVibe={handlePickVibe}
                   onSkipVibe={handleSkipVibe}
+                  onCustomVibe={handleCustomVibe}
                   onConfirm={handleConfirm}
                   onEdit={handleEdit}
                 />
@@ -550,8 +586,10 @@ function SponsorFooter({
   onChip,
   mode,
   vibeSuggestions,
+  vibeLoading,
   onPickVibe,
   onSkipVibe,
+  onCustomVibe,
   onConfirm,
   onEdit,
 }: {
@@ -562,31 +600,47 @@ function SponsorFooter({
   onChip: (c: string) => void;
   mode: "input" | "vibe" | "review";
   vibeSuggestions: string[];
+  vibeLoading: boolean;
   onPickVibe: (v: string) => void;
   onSkipVibe: () => void;
+  onCustomVibe: () => void;
   onConfirm: () => void;
   onEdit: (field: EditField) => void;
 }) {
   if (mode === "vibe") {
     return (
       <div className="space-y-2 px-3 py-3">
-        <div className="scrollbar-thin flex flex-wrap gap-1.5">
-          {vibeSuggestions.map((v) => (
-            <button
-              key={v}
-              onClick={() => onPickVibe(v)}
-              className="shrink-0 rounded-full border border-border bg-card px-3 py-1 text-xs text-foreground transition hover:bg-muted"
-            >
-              {v}
-            </button>
-          ))}
+        {vibeLoading ? (
+          <div className="px-1 py-2 text-xs text-muted-foreground">
+            Generating vibe suggestions…
+          </div>
+        ) : (
+          <div className="scrollbar-thin flex flex-wrap gap-1.5">
+            {vibeSuggestions.map((v) => (
+              <button
+                key={v}
+                onClick={() => onPickVibe(v)}
+                className="shrink-0 rounded-full border border-border bg-card px-3 py-1 text-xs text-foreground transition hover:bg-muted"
+              >
+                {v}
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="flex gap-2">
+          <button
+            onClick={onCustomVibe}
+            className="flex-1 rounded-2xl border border-border bg-card py-2 text-sm font-medium text-foreground transition hover:bg-muted"
+          >
+            Custom vibe
+          </button>
+          <button
+            onClick={onSkipVibe}
+            className="flex-1 rounded-2xl border border-border bg-card py-2 text-sm font-medium text-foreground transition hover:bg-muted"
+          >
+            Skip vibe
+          </button>
         </div>
-        <button
-          onClick={onSkipVibe}
-          className="w-full rounded-2xl border border-border bg-card py-2 text-sm font-medium text-foreground transition hover:bg-muted"
-        >
-          Skip vibe — let Parley infer
-        </button>
       </div>
     );
   }
