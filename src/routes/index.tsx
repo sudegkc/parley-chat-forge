@@ -548,17 +548,80 @@ function SponsorFooter({
   onSend,
   chips,
   onChip,
-  showConfirm,
+  mode,
+  vibeSuggestions,
+  onPickVibe,
+  onSkipVibe,
   onConfirm,
+  onEdit,
 }: {
   value: string;
   onChange: (v: string) => void;
   onSend: () => void;
   chips: string[];
   onChip: (c: string) => void;
-  showConfirm: boolean;
+  mode: "input" | "vibe" | "review";
+  vibeSuggestions: string[];
+  onPickVibe: (v: string) => void;
+  onSkipVibe: () => void;
   onConfirm: () => void;
+  onEdit: (field: EditField) => void;
 }) {
+  if (mode === "vibe") {
+    return (
+      <div className="space-y-2 px-3 py-3">
+        <div className="scrollbar-thin flex flex-wrap gap-1.5">
+          {vibeSuggestions.map((v) => (
+            <button
+              key={v}
+              onClick={() => onPickVibe(v)}
+              className="shrink-0 rounded-full border border-border bg-card px-3 py-1 text-xs text-foreground transition hover:bg-muted"
+            >
+              {v}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={onSkipVibe}
+          className="w-full rounded-2xl border border-border bg-card py-2 text-sm font-medium text-foreground transition hover:bg-muted"
+        >
+          Skip vibe — let Parley infer
+        </button>
+      </div>
+    );
+  }
+
+  if (mode === "review") {
+    const editBtns: Array<[EditField, string]> = [
+      ["product", "Edit product"],
+      ["quantity", "Edit quantity"],
+      ["vibe", "Edit vibe"],
+      ["location", "Edit location"],
+      ["expiry", "Edit expiry"],
+    ];
+    return (
+      <div className="space-y-2 px-3 py-3">
+        <button
+          onClick={onConfirm}
+          className="w-full rounded-2xl bg-primary py-2.5 text-sm font-medium text-primary-foreground transition active:scale-[0.99]"
+        >
+          Confirm campaign
+        </button>
+        <div className="flex flex-wrap gap-1.5">
+          {editBtns.map(([f, label]) => (
+            <button
+              key={f}
+              onClick={() => onEdit(f)}
+              className="shrink-0 rounded-full border border-border bg-card px-3 py-1 text-xs text-foreground transition hover:bg-muted"
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-2 px-3 py-3">
       {chips.length > 0 && (
@@ -574,31 +637,22 @@ function SponsorFooter({
           ))}
         </div>
       )}
-      {showConfirm ? (
+      <div className="flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5">
+        <input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && onSend()}
+          placeholder="Message Parley…"
+          className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+        />
         <button
-          onClick={onConfirm}
-          className="w-full rounded-2xl bg-primary py-2.5 text-sm font-medium text-primary-foreground transition active:scale-[0.99]"
+          onClick={onSend}
+          disabled={!value.trim()}
+          className="rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground disabled:opacity-40"
         >
-          Confirm & launch campaign
+          Send
         </button>
-      ) : (
-        <div className="flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5">
-          <input
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && onSend()}
-            placeholder="Message Parley…"
-            className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-          />
-          <button
-            onClick={onSend}
-            disabled={!value.trim()}
-            className="rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground disabled:opacity-40"
-          >
-            Send
-          </button>
-        </div>
-      )}
+      </div>
     </div>
   );
 }
