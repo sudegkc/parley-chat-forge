@@ -1,16 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { useMemo, useRef, useState } from "react";
 import { nanoid } from "nanoid";
 import { PhoneFrame } from "@/components/PhoneFrame";
 import { ChatWindow } from "@/components/ChatWindow";
-import type { Message, MatchedUser, Reward } from "@/lib/parley-types";
+import type { Campaign, Message, MatchedUser, Reward } from "@/lib/parley-types";
 import {
-  CAMPAIGN_DRAFT,
   MOCK_USERS,
   SUGGESTED_PROMPT,
   newRewardCode,
   personalMessage,
 } from "@/lib/parley-script";
+import { extractCampaign } from "@/lib/parley.functions";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -35,6 +36,7 @@ type Stage =
   | "intro"
   | "awaiting_request"
   | "extracted"
+  | "awaiting_brand"
   | "awaiting_expiry"
   | "confirming"
   | "matched"
@@ -64,6 +66,20 @@ function ParleyDemo() {
   const [activeUserId, setActiveUserId] = useState<string | null>(null);
   const [claimed, setClaimed] = useState<Set<string>>(new Set());
   const expiryRef = useRef("in 7 days");
+  const campaignRef = useRef<Campaign>({
+    brand: "",
+    product: "",
+    quantity: 0,
+    vibe: [],
+    location: "",
+    expiry: null,
+  });
+  const extract = useServerFn(extractCampaign);
+
+  const askExpiry = async () => {
+    await botSay("One thing missing — when should this campaign expire?", 500);
+    setStage("awaiting_expiry");
+  };
 
   const appendSponsor = (m: Message) => setSponsorMsgs((p) => [...p, m]);
   const appendUser = (uid: string, m: Message) =>
@@ -87,31 +103,74 @@ function ParleyDemo() {
 
     if (stage === "intro" || stage === "awaiting_request") {
       setStage("extracted");
-      await botSay("Got it — reading that…", 600);
+      await botSay("Got it — reading that…", 500);
       setSponsorTyping(true);
-      setTimeout(() => {
-        setSponsorTyping(false);
-        appendSponsor({
-          id: mid(),
-          sender: "bot",
-          kind: "extraction",
-          data: CAMPAIGN_DRAFT,
-          ts: now(),
-        });
-        setTimeout(async () => {
-          await botSay("One thing missing — when should this campaign expire?", 500);
-          setStage("awaiting_expiry");
-        }, 400);
-      }, 900);
+      const result = await extract({ data: { message: text } });
+      setSponsorTyping(false);
+
+      if (result.error || !result.campaign) {
+        await botSay(
+          result.error ?? "Hmm, I couldn't read that. Try again with a bit more detail?",
+          400,
+        );
+        setStage("awaiting_request");
+        return;
+      }
+
+      const c = result.campaign;
+      const campaign: Campaign = {
+        brand: c.brand ?? "",
+        product: c.product ?? "",
+        quantity: c.quantity ?? 0,
+        vibe: c.vibe,
+        location: c.location ?? "",
+        expiry: null,
+      };
+      campaignRef.current = campaign;
+      appendSponsor({
+        id: mid(),
+        sender: "bot",
+        kind: "extraction",
+        data: { ...campaign, brand: campaign.brand || "" },
+        ts: now(),
+      });
+
+      if (!campaign.brand) {
+        await botSay(
+          "What brand or business name should this campaign run under?",
+          500,
+        );
+        setStage("awaiting_brand");
+        return;
+      }
+
+      await askExpiry();
+      return;
+    }
+
+    if (stage === "awaiting_brand") {
+      campaignRef.current = { ...campaignRef.current, brand: text };
+      appendSponsor({
+        id: mid(),
+        sender: "bot",
+        kind: "extraction",
+        data: campaignRef.current,
+        ts: now(),
+      });
+      await askExpiry();
       return;
     }
 
     if (stage === "awaiting_expiry") {
       expiryRef.current = text;
-      await botSay(
-        `Perfect. Campaign: 100 iced matchas, study-girls vibe, Turin, expires ${text}. Confirm to launch?`,
-        700,
-      );
+      const c = campaignRef.current;
+      const parts = [
+        c.quantity ? `${c.quantity} ${c.product || "items"}` : c.product || "items",
+        c.vibe.length ? `${c.vibe.join(" / ")} vibe` : null,
+        c.location || null,
+        `expires ${text}`,
+      ].filter(Boolean);
+      await botSay(`Perfect. Campaign: ${parts.join(", ")}. Confirm to launch?`, 700);
       setStage("confirming");
       return;
     }
@@ -157,10 +216,11 @@ function ParleyDemo() {
           text: personalMessage(u),
         });
         setTimeout(() => {
+          const c = campaignRef.current;
           const reward: Reward = {
             code: newRewardCode(),
-            brand: CAMPAIGN_DRAFT.brand,
-            product: CAMPAIGN_DRAFT.product,
+            brand: c.brand || "Sponsor",
+            product: c.product || "reward",
             expiry: expiryRef.current,
           };
           appendUser(u.id, { id: mid(), sender: "bot", kind: "qr", reward, ts: now() });
@@ -168,7 +228,11 @@ function ParleyDemo() {
       }, 350 + i * 500);
     });
     setTimeout(async () => {
-      await botSay("All 100 rewards delivered ✓ You can ask me 'how is my campaign doing?' any time.", 800);
+      const total = campaignRef.current.quantity || MOCK_USERS.length;
+      await botSay(
+        `All ${total} rewards delivered ✓ You can ask me 'how is my campaign doing?' any time.`,
+        800,
+      );
       setStage("dispatched");
       // simulate background claims
       setTimeout(() => simulateClaim("u2"), 2500);
