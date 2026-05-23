@@ -128,7 +128,12 @@ function DashboardPage() {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Signed out.");
     navigate({ to: "/login" });
   };
 
