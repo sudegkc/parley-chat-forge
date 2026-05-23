@@ -294,6 +294,12 @@ function ParleyDemo() {
     await goToReview();
   };
 
+  const handleCustomVibe = async () => {
+    appendSponsor({ id: mid(), sender: "sponsor", kind: "text", text: "Custom vibe", ts: now() });
+    await botSay("Describe the vibe in your own words.", 400);
+    setStage("awaiting_custom_vibe");
+  };
+
   const handleEdit = async (field: EditField) => {
     const labels: Record<EditField, string> = {
       product: "product",
