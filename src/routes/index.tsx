@@ -81,6 +81,19 @@ function ParleyDemo() {
     setStage("awaiting_expiry");
   };
 
+  const confirmCampaign = async () => {
+    const c = campaignRef.current;
+    const parts = [
+      c.quantity ? `${c.quantity} ${c.product ?? "items"}` : c.product ?? "items",
+      c.audience ? `for ${c.audience}` : null,
+      c.vibe.length ? `${c.vibe.join(" / ")} vibe` : null,
+      c.location ?? null,
+      c.expiry ? `expires ${c.expiry}` : null,
+    ].filter(Boolean);
+    await botSay(`Perfect. Campaign: ${parts.join(", ")}. Confirm to launch?`, 700);
+    setStage("confirming");
+  };
+
   const appendSponsor = (m: Message) => setSponsorMsgs((p) => [...p, m]);
   const appendUser = (uid: string, m: Message) =>
     setUserChats((p) => ({ ...p, [uid]: [...(p[uid] ?? []), m] }));
