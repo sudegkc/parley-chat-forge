@@ -98,7 +98,10 @@ function ParleyDemo() {
   });
   const extract = useServerFn(extractCampaign);
   const infer = useServerFn(inferVibe);
+  const suggest = useServerFn(suggestVibes);
   const originalMessageRef = useRef<string>("");
+  const [vibeSuggestions, setVibeSuggestions] = useState<string[]>([]);
+  const [vibeLoading, setVibeLoading] = useState(false);
 
   const askExpiry = async () => {
     await botSay("One thing missing — when should this campaign expire?", 500);
@@ -107,10 +110,28 @@ function ParleyDemo() {
 
   const goToVibeStep = async () => {
     await botSay(
-      "Who should this reward reach? Pick a vibe or skip if you want Parley to infer it.",
+      "Who should this reward reach? Pick a vibe, write your own, or skip and let Parley infer it.",
       700,
     );
     setStage("awaiting_vibe");
+    setVibeLoading(true);
+    setVibeSuggestions([]);
+    try {
+      const c = campaignRef.current;
+      const res = await suggest({
+        data: {
+          message: originalMessageRef.current,
+          product: c.product,
+          audience: c.audience,
+          location: c.location,
+        },
+      });
+      setVibeSuggestions(res.suggestions);
+    } catch {
+      setVibeSuggestions(suggestVibesFor(campaignRef.current.product, originalMessageRef.current));
+    } finally {
+      setVibeLoading(false);
+    }
   };
 
   const goToReview = async () => {
