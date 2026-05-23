@@ -505,8 +505,10 @@ function ParleyDemo() {
                         : "input"
                   }
                   vibeSuggestions={vibeSuggestions}
+                  vibeLoading={vibeLoading}
                   onPickVibe={handlePickVibe}
                   onSkipVibe={handleSkipVibe}
+                  onCustomVibe={handleCustomVibe}
                   onConfirm={handleConfirm}
                   onEdit={handleEdit}
                 />
