@@ -2,6 +2,17 @@ import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import type { Reward } from "@/lib/parley-types";
 
+function formatExpiry(value: string): string {
+  const d = new Date(value);
+  if (!Number.isNaN(d.getTime())) {
+    const day = String(d.getDate()).padStart(2, "0");
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const year = d.getFullYear();
+    return `${day}-${month}-${year}`;
+  }
+  return value;
+}
+
 type Props = { reward: Reward; claimed?: boolean; onClaim?: () => void };
 
 export function QRRewardCard({ reward, claimed, onClaim }: Props) {
@@ -52,7 +63,7 @@ export function QRRewardCard({ reward, claimed, onClaim }: Props) {
         <div className="text-[10px] text-muted-foreground">
           {claimed ? "Claimed ✓" : "Tap QR to scan"}
         </div>
-        <div className="text-[10px] text-muted-foreground">Expires {reward.expiry}</div>
+        <div className="text-[10px] text-muted-foreground">Expires {formatExpiry(reward.expiry)}</div>
       </div>
     </div>
   );
