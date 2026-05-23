@@ -1,5 +1,17 @@
 import type { Campaign } from "@/lib/parley-types";
 
+function formatExpiry(value: string | null): string | null {
+  if (!value) return null;
+  const d = new Date(value);
+  if (!Number.isNaN(d.getTime())) {
+    const day = String(d.getDate()).padStart(2, "0");
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const year = d.getFullYear();
+    return `${day}-${month}-${year}`;
+  }
+  return value;
+}
+
 export function ExtractionCard({ data }: { data: Campaign }) {
   const rows: Array<[string, string | null]> = [
     ["Brand", data.brand],
@@ -8,7 +20,7 @@ export function ExtractionCard({ data }: { data: Campaign }) {
     ["Vibe", data.vibe.length ? data.vibe.join(" · ") : null],
     ["Audience", data.audience],
     ["Location", data.location],
-    ["Expiry", data.expiry],
+    ["Expiry", formatExpiry(data.expiry)],
   ];
   return (
     <div className="animate-bubble-in w-full max-w-[280px] rounded-2xl border border-border bg-card p-3">
