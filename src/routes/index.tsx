@@ -41,6 +41,7 @@ type Stage =
   | "awaiting_brand"
   | "awaiting_expiry"
   | "awaiting_vibe"
+  | "awaiting_custom_vibe"
   | "reviewing"
   | "awaiting_edit_product"
   | "awaiting_edit_quantity"
