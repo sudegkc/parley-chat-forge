@@ -65,13 +65,13 @@ function ParleyDemo() {
   const [userChats, setUserChats] = useState<Record<string, Message[]>>({});
   const [activeUserId, setActiveUserId] = useState<string | null>(null);
   const [claimed, setClaimed] = useState<Set<string>>(new Set());
-  const expiryRef = useRef("in 7 days");
   const campaignRef = useRef<Campaign>({
-    brand: "",
-    product: "",
-    quantity: 0,
+    brand: null,
+    product: null,
+    quantity: null,
     vibe: [],
-    location: "",
+    audience: null,
+    location: null,
     expiry: null,
   });
   const extract = useServerFn(extractCampaign);
@@ -79,6 +79,19 @@ function ParleyDemo() {
   const askExpiry = async () => {
     await botSay("One thing missing — when should this campaign expire?", 500);
     setStage("awaiting_expiry");
+  };
+
+  const confirmCampaign = async () => {
+    const c = campaignRef.current;
+    const parts = [
+      c.quantity ? `${c.quantity} ${c.product ?? "items"}` : c.product ?? "items",
+      c.audience ? `for ${c.audience}` : null,
+      c.vibe.length ? `${c.vibe.join(" / ")} vibe` : null,
+      c.location ?? null,
+      c.expiry ? `expires ${c.expiry}` : null,
+    ].filter(Boolean);
+    await botSay(`Perfect. Campaign: ${parts.join(", ")}. Confirm to launch?`, 700);
+    setStage("confirming");
   };
 
   const appendSponsor = (m: Message) => setSponsorMsgs((p) => [...p, m]);
@@ -119,19 +132,20 @@ function ParleyDemo() {
 
       const c = result.campaign;
       const campaign: Campaign = {
-        brand: c.brand ?? "",
-        product: c.product ?? "",
-        quantity: c.quantity ?? 0,
+        brand: c.brand,
+        product: c.product,
+        quantity: c.quantity,
         vibe: c.vibe,
-        location: c.location ?? "",
-        expiry: null,
+        audience: c.audience,
+        location: c.location,
+        expiry: c.expiry,
       };
       campaignRef.current = campaign;
       appendSponsor({
         id: mid(),
         sender: "bot",
         kind: "extraction",
-        data: { ...campaign, brand: campaign.brand || "" },
+        data: campaign,
         ts: now(),
       });
 
@@ -144,7 +158,12 @@ function ParleyDemo() {
         return;
       }
 
-      await askExpiry();
+      if (!campaign.expiry) {
+        await askExpiry();
+        return;
+      }
+
+      await confirmCampaign();
       return;
     }
 
@@ -162,16 +181,8 @@ function ParleyDemo() {
     }
 
     if (stage === "awaiting_expiry") {
-      expiryRef.current = text;
-      const c = campaignRef.current;
-      const parts = [
-        c.quantity ? `${c.quantity} ${c.product || "items"}` : c.product || "items",
-        c.vibe.length ? `${c.vibe.join(" / ")} vibe` : null,
-        c.location || null,
-        `expires ${text}`,
-      ].filter(Boolean);
-      await botSay(`Perfect. Campaign: ${parts.join(", ")}. Confirm to launch?`, 700);
-      setStage("confirming");
+      campaignRef.current = { ...campaignRef.current, expiry: text };
+      await confirmCampaign();
       return;
     }
 
@@ -221,7 +232,7 @@ function ParleyDemo() {
             code: newRewardCode(),
             brand: c.brand || "Sponsor",
             product: c.product || "reward",
-            expiry: expiryRef.current,
+            expiry: c.expiry ?? "in 7 days",
           };
           appendUser(u.id, { id: mid(), sender: "bot", kind: "qr", reward, ts: now() });
         }, 450);
