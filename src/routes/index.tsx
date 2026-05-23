@@ -65,13 +65,13 @@ function ParleyDemo() {
   const [userChats, setUserChats] = useState<Record<string, Message[]>>({});
   const [activeUserId, setActiveUserId] = useState<string | null>(null);
   const [claimed, setClaimed] = useState<Set<string>>(new Set());
-  const expiryRef = useRef("in 7 days");
   const campaignRef = useRef<Campaign>({
-    brand: "",
-    product: "",
-    quantity: 0,
+    brand: null,
+    product: null,
+    quantity: null,
     vibe: [],
-    location: "",
+    audience: null,
+    location: null,
     expiry: null,
   });
   const extract = useServerFn(extractCampaign);
