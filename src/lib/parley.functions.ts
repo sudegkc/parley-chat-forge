@@ -6,11 +6,13 @@ const inputSchema = z.object({
 });
 
 export type ExtractedCampaign = {
+  brand: string | null;
   product: string | null;
   quantity: number | null;
   vibe: string[];
+  audience: string | null;
   location: string | null;
-  brand: string | null;
+  expiry: string | null;
 };
 
 const normalize = (s: string) => s.replace(/\s+/g, "").toLowerCase();
@@ -20,14 +22,20 @@ function validate(extracted: ExtractedCampaign, source: string): ExtractedCampai
   const check = (v: string | null) =>
     v && src.includes(normalize(v)) ? v : null;
   return {
+    brand: check(extracted.brand),
     product: check(extracted.product),
     quantity:
-      extracted.quantity != null && src.includes(String(extracted.quantity))
+      extracted.quantity != null && source.includes(String(extracted.quantity))
         ? extracted.quantity
         : null,
     vibe: (extracted.vibe ?? []).filter((t) => src.includes(normalize(t))),
+    audience: check(extracted.audience),
     location: check(extracted.location),
-    brand: check(extracted.brand),
+    // Expiry is a time phrase ("in 7 days", "next Friday") — accept any non-empty string.
+    expiry:
+      extracted.expiry && extracted.expiry.trim().length > 0
+        ? extracted.expiry.trim()
+        : null,
   };
 }
 
@@ -45,9 +53,16 @@ export const extractCampaign = createServerFn({ method: "POST" })
     const systemPrompt = [
       "You extract campaign details from a sponsor's free-text message.",
       "Only use information explicitly present in the message.",
-      "Do NOT invent, guess, or default values. Never inject 'matcha' or any other product unless the user wrote it.",
+      "Do NOT invent, guess, or default values. Never inject 'matcha' or any product the user did not write.",
       "If a field is not mentioned, return null (or [] for vibe).",
-      "If the brand/business name is not mentioned, return brand: null — do not hallucinate one.",
+      "Fields:",
+      "- brand: business name running the campaign (null if not mentioned).",
+      "- product: the item being given away (e.g. 'iced latte').",
+      "- quantity: integer number of items.",
+      "- vibe: short mood/aesthetic descriptors taken verbatim (e.g. ['cozy','aesthetic']). [] if absent.",
+      "- audience: who the campaign is for (e.g. 'study girls', 'students'). Null if absent.",
+      "- location: city or place.",
+      "- expiry: time phrase like 'in 7 days', 'end of month', 'next Friday'. Null if absent.",
     ].join(" ");
 
     try {
@@ -73,32 +88,23 @@ export const extractCampaign = createServerFn({ method: "POST" })
                 parameters: {
                   type: "object",
                   properties: {
-                    product: {
-                      type: ["string", "null"],
-                      description:
-                        "The item being given away (e.g. 'iced latte'). Null if not stated.",
-                    },
-                    quantity: {
-                      type: ["integer", "null"],
-                      description: "How many will be given out. Null if not stated.",
-                    },
-                    vibe: {
-                      type: "array",
-                      items: { type: "string" },
-                      description:
-                        "Short descriptors of the target audience taken verbatim from the message (e.g. ['study girls']). [] if not stated.",
-                    },
-                    location: {
-                      type: ["string", "null"],
-                      description: "City or place. Null if not stated.",
-                    },
-                    brand: {
-                      type: ["string", "null"],
-                      description:
-                        "Brand or business name. Null if the user did not mention one.",
-                    },
+                    brand: { type: ["string", "null"] },
+                    product: { type: ["string", "null"] },
+                    quantity: { type: ["integer", "null"] },
+                    vibe: { type: "array", items: { type: "string" } },
+                    audience: { type: ["string", "null"] },
+                    location: { type: ["string", "null"] },
+                    expiry: { type: ["string", "null"] },
                   },
-                  required: ["product", "quantity", "vibe", "location", "brand"],
+                  required: [
+                    "brand",
+                    "product",
+                    "quantity",
+                    "vibe",
+                    "audience",
+                    "location",
+                    "expiry",
+                  ],
                   additionalProperties: false,
                 },
               },
@@ -123,9 +129,7 @@ export const extractCampaign = createServerFn({ method: "POST" })
       const json = (await res.json()) as {
         choices?: Array<{
           message?: {
-            tool_calls?: Array<{
-              function?: { arguments?: string };
-            }>;
+            tool_calls?: Array<{ function?: { arguments?: string } }>;
           };
         }>;
       };
@@ -138,19 +142,20 @@ export const extractCampaign = createServerFn({ method: "POST" })
         };
       }
 
-      const parsed = JSON.parse(args) as ExtractedCampaign;
+      const parsed = JSON.parse(args) as Partial<ExtractedCampaign>;
       const safe = validate(
         {
+          brand: parsed.brand ?? null,
           product: parsed.product ?? null,
           quantity: parsed.quantity ?? null,
           vibe: parsed.vibe ?? [],
+          audience: parsed.audience ?? null,
           location: parsed.location ?? null,
-          brand: parsed.brand ?? null,
+          expiry: parsed.expiry ?? null,
         },
         data.message,
       );
 
-      // Title-case the location for nicer display when validated.
       const campaign: ExtractedCampaign = {
         ...safe,
         location: safe.location
