@@ -293,3 +293,106 @@ export const inferVibe = createServerFn({ method: "POST" })
       return { vibe: fallbackInferVibe(data.message, data.product) };
     }
   });
+
+const suggestInputSchema = z.object({
+  message: z.string().trim().min(1).max(2000),
+  product: z.string().trim().max(200).nullable(),
+  audience: z.string().trim().max(200).nullable(),
+  location: z.string().trim().max(200).nullable(),
+});
+
+function fallbackSuggestVibes(
+  message: string,
+  product: string | null,
+  audience: string | null,
+  location: string | null,
+): string[] {
+  const text = `${product ?? ""} ${audience ?? ""} ${location ?? ""} ${message}`.toLowerCase();
+  const out = new Set<string>();
+  if (/study|student|university|college|library|exam/.test(text)) {
+    out.add("study mode");
+    out.add("university students");
+    out.add("exam season");
+    out.add("late-night study");
+    out.add("productivity");
+  }
+  if (/cafe|latte|coffee|matcha|espresso|cappuccino|tea/.test(text)) {
+    out.add("cafe lovers");
+    out.add("cozy mornings");
+    out.add("aesthetic girls");
+  }
+  if (/gym|workout|fitness|protein|run/.test(text)) {
+    out.add("fitness");
+    out.add("gym rats");
+    out.add("morning routine");
+    out.add("wellness");
+  }
+  if (/book|read|novel/.test(text)) {
+    out.add("bookworms");
+    out.add("cozy readers");
+    out.add("literary");
+  }
+  if (/pizza|burger|food|meal|lunch|dinner/.test(text)) {
+    out.add("foodies");
+    out.add("late night");
+    out.add("friends night");
+  }
+  if (/aesthetic|cozy|cute|pretty|girl/.test(text)) out.add("aesthetic");
+  // generic top-ups
+  ["students", "creatives", "locals", "productivity"].forEach((t) => out.add(t));
+  return Array.from(out).slice(0, 8);
+}
+
+export const suggestVibes = createServerFn({ method: "POST" })
+  .inputValidator((input) => suggestInputSchema.parse(input))
+  .handler(async ({ data }) => {
+    const apiKey = process.env.OPENAI_API_KEY;
+    const fb = () =>
+      fallbackSuggestVibes(data.message, data.product, data.audience, data.location);
+    if (!apiKey) return { suggestions: fb() };
+    try {
+      const res = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          temperature: 0.6,
+          response_format: { type: "json_object" },
+          messages: [
+            {
+              role: "system",
+              content:
+                "Suggest 5-8 short audience 'vibe' tags (lowercase, 1-3 words each) that fit the sponsor's reward campaign. Mix mood, lifestyle, and moment-based tags. Respond as JSON: {\"tags\": [\"tag1\", ...]}.",
+            },
+            {
+              role: "user",
+              content: `Product: ${data.product ?? "unknown"}\nAudience: ${data.audience ?? "unknown"}\nLocation: ${data.location ?? "unknown"}\nMessage: ${data.message}`,
+            },
+          ],
+        }),
+      });
+      if (!res.ok) {
+        console.error("[suggestVibes] OpenAI error:", res.status);
+        return { suggestions: fb() };
+      }
+      const json = (await res.json()) as {
+        choices?: Array<{ message?: { content?: string } }>;
+      };
+      const content = json.choices?.[0]?.message?.content ?? "{}";
+      const parsed = JSON.parse(content) as { tags?: unknown };
+      const tags = Array.isArray(parsed.tags)
+        ? parsed.tags
+            .filter((t): t is string => typeof t === "string")
+            .map((t) => t.trim().toLowerCase())
+            .filter(Boolean)
+            .slice(0, 8)
+        : [];
+      return { suggestions: tags.length >= 3 ? tags : fb() };
+    } catch (err) {
+      console.error("[suggestVibes] error:", err);
+      return { suggestions: fb() };
+    }
+  });
