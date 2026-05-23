@@ -5,11 +5,12 @@ export const SUGGESTED_PROMPT =
   "I wanna give 10 iced lattes to study girls in Turin.";
 
 export const CAMPAIGN_DRAFT: Campaign = {
-  brand: "Kioko Matcha Bar",
-  product: "Iced matcha latte",
-  quantity: 100,
-  vibe: ["study", "matcha", "aesthetic", "quiet cafés"],
-  location: "Turin, IT",
+  brand: null,
+  product: null,
+  quantity: null,
+  vibe: [],
+  audience: null,
+  location: null,
   expiry: null,
 };
 
