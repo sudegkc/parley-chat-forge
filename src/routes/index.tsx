@@ -11,7 +11,7 @@ import {
   newRewardCode,
   personalMessage,
 } from "@/lib/parley-script";
-import { extractCampaign } from "@/lib/parley.functions";
+import { extractCampaign, inferVibe } from "@/lib/parley.functions";
 
 export const Route = createFileRoute("/")({
   head: () => ({
