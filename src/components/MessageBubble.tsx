@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { Sender } from "@/lib/parley-types";
 
 type Props = {
@@ -7,7 +7,16 @@ type Props = {
   ts?: number;
 };
 
+function formatTime(ts: number) {
+  const d = new Date(ts);
+  const h = d.getHours().toString().padStart(2, "0");
+  const m = d.getMinutes().toString().padStart(2, "0");
+  return `${h}:${m}`;
+}
+
 export function MessageBubble({ sender, children, ts }: Props) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   if (sender === "system") {
     return (
       <div className="flex justify-center">
@@ -28,9 +37,9 @@ export function MessageBubble({ sender, children, ts }: Props) {
         }`}
       >
         <div className="whitespace-pre-wrap break-words">{children}</div>
-        {ts && (
+        {ts && mounted && (
           <div className={`mt-1 text-[10px] ${isMe ? "text-white/60" : "text-muted-foreground"} text-right`}>
-            {new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            {formatTime(ts)}
           </div>
         )}
       </div>
