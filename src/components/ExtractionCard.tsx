@@ -4,8 +4,9 @@ export function ExtractionCard({ data }: { data: Campaign }) {
   const rows: Array<[string, string | null]> = [
     ["Brand", data.brand],
     ["Product", data.product],
-    ["Quantity", String(data.quantity)],
-    ["Vibe", data.vibe.join(" · ")],
+    ["Quantity", data.quantity != null ? String(data.quantity) : null],
+    ["Vibe", data.vibe.length ? data.vibe.join(" · ") : null],
+    ["Audience", data.audience],
     ["Location", data.location],
     ["Expiry", data.expiry],
   ];
