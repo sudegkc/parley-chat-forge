@@ -227,3 +227,69 @@ export const extractCampaign = createServerFn({ method: "POST" })
 
     return { campaign, error: null as string | null, source: "openai" as const };
   });
+
+const inferInputSchema = z.object({
+  message: z.string().trim().min(1).max(2000),
+  product: z.string().trim().max(200).nullable(),
+});
+
+function fallbackInferVibe(message: string, product: string | null): string[] {
+  const text = `${product ?? ""} ${message}`.toLowerCase();
+  const tags: string[] = [];
+  if (/study|student|university|college|library|exam/.test(text)) tags.push("study mode");
+  if (/cafe|latte|coffee|matcha|espresso|cappuccino/.test(text)) tags.push("cafe lovers");
+  if (/aesthetic|cozy|cute|pretty|girl/.test(text)) tags.push("aesthetic");
+  if (/gym|workout|fitness|protein|run/.test(text)) tags.push("fitness");
+  if (/book|read|novel/.test(text)) tags.push("bookworms");
+  if (/morning/.test(text)) tags.push("cozy mornings");
+  if (/work|productive|focus/.test(text)) tags.push("productivity");
+  return tags.length ? tags.slice(0, 3) : ["locals"];
+}
+
+export const inferVibe = createServerFn({ method: "POST" })
+  .inputValidator((input) => inferInputSchema.parse(input))
+  .handler(async ({ data }) => {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) return { vibe: fallbackInferVibe(data.message, data.product) };
+    try {
+      const res = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          temperature: 0.3,
+          response_format: { type: "json_object" },
+          messages: [
+            {
+              role: "system",
+              content:
+                "Infer 2-3 short vibe tags (lowercase, 1-3 words each) describing the target audience mood for a reward campaign. Respond as JSON: {\"tags\": [\"tag1\", \"tag2\"]}.",
+            },
+            {
+              role: "user",
+              content: `Product: ${data.product ?? "unknown"}\nMessage: ${data.message}`,
+            },
+          ],
+        }),
+      });
+      if (!res.ok) {
+        console.error("[inferVibe] OpenAI error:", res.status);
+        return { vibe: fallbackInferVibe(data.message, data.product) };
+      }
+      const json = (await res.json()) as {
+        choices?: Array<{ message?: { content?: string } }>;
+      };
+      const content = json.choices?.[0]?.message?.content ?? "{}";
+      const parsed = JSON.parse(content) as { tags?: unknown };
+      const tags = Array.isArray(parsed.tags)
+        ? parsed.tags.filter((t): t is string => typeof t === "string").slice(0, 3)
+        : [];
+      return { vibe: tags.length ? tags : fallbackInferVibe(data.message, data.product) };
+    } catch (err) {
+      console.error("[inferVibe] error:", err);
+      return { vibe: fallbackInferVibe(data.message, data.product) };
+    }
+  });
