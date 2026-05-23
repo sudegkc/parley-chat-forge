@@ -15,6 +15,8 @@ function formatTime(ts: number) {
 }
 
 export function MessageBubble({ sender, children, ts }: Props) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   if (sender === "system") {
     return (
       <div className="flex justify-center">
