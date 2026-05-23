@@ -119,19 +119,20 @@ function ParleyDemo() {
 
       const c = result.campaign;
       const campaign: Campaign = {
-        brand: c.brand ?? "",
-        product: c.product ?? "",
-        quantity: c.quantity ?? 0,
+        brand: c.brand,
+        product: c.product,
+        quantity: c.quantity,
         vibe: c.vibe,
-        location: c.location ?? "",
-        expiry: null,
+        audience: c.audience,
+        location: c.location,
+        expiry: c.expiry,
       };
       campaignRef.current = campaign;
       appendSponsor({
         id: mid(),
         sender: "bot",
         kind: "extraction",
-        data: { ...campaign, brand: campaign.brand || "" },
+        data: campaign,
         ts: now(),
       });
 
@@ -144,7 +145,12 @@ function ParleyDemo() {
         return;
       }
 
-      await askExpiry();
+      if (!campaign.expiry) {
+        await askExpiry();
+        return;
+      }
+
+      await confirmCampaign();
       return;
     }
 
