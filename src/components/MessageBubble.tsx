@@ -37,9 +37,9 @@ export function MessageBubble({ sender, children, ts }: Props) {
         }`}
       >
         <div className="whitespace-pre-wrap break-words">{children}</div>
-        {ts && (
+        {ts && mounted && (
           <div className={`mt-1 text-[10px] ${isMe ? "text-white/60" : "text-muted-foreground"} text-right`}>
-            {new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            {formatTime(ts)}
           </div>
         )}
       </div>
