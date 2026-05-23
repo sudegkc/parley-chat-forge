@@ -232,7 +232,7 @@ function ParleyDemo() {
             code: newRewardCode(),
             brand: c.brand || "Sponsor",
             product: c.product || "reward",
-            expiry: expiryRef.current,
+            expiry: c.expiry ?? "in 7 days",
           };
           appendUser(u.id, { id: mid(), sender: "bot", kind: "qr", reward, ts: now() });
         }, 450);
