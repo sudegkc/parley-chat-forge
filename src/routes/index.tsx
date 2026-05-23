@@ -586,8 +586,10 @@ function SponsorFooter({
   onChip,
   mode,
   vibeSuggestions,
+  vibeLoading,
   onPickVibe,
   onSkipVibe,
+  onCustomVibe,
   onConfirm,
   onEdit,
 }: {
@@ -598,31 +600,47 @@ function SponsorFooter({
   onChip: (c: string) => void;
   mode: "input" | "vibe" | "review";
   vibeSuggestions: string[];
+  vibeLoading: boolean;
   onPickVibe: (v: string) => void;
   onSkipVibe: () => void;
+  onCustomVibe: () => void;
   onConfirm: () => void;
   onEdit: (field: EditField) => void;
 }) {
   if (mode === "vibe") {
     return (
       <div className="space-y-2 px-3 py-3">
-        <div className="scrollbar-thin flex flex-wrap gap-1.5">
-          {vibeSuggestions.map((v) => (
-            <button
-              key={v}
-              onClick={() => onPickVibe(v)}
-              className="shrink-0 rounded-full border border-border bg-card px-3 py-1 text-xs text-foreground transition hover:bg-muted"
-            >
-              {v}
-            </button>
-          ))}
+        {vibeLoading ? (
+          <div className="px-1 py-2 text-xs text-muted-foreground">
+            Generating vibe suggestions…
+          </div>
+        ) : (
+          <div className="scrollbar-thin flex flex-wrap gap-1.5">
+            {vibeSuggestions.map((v) => (
+              <button
+                key={v}
+                onClick={() => onPickVibe(v)}
+                className="shrink-0 rounded-full border border-border bg-card px-3 py-1 text-xs text-foreground transition hover:bg-muted"
+              >
+                {v}
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="flex gap-2">
+          <button
+            onClick={onCustomVibe}
+            className="flex-1 rounded-2xl border border-border bg-card py-2 text-sm font-medium text-foreground transition hover:bg-muted"
+          >
+            Custom vibe
+          </button>
+          <button
+            onClick={onSkipVibe}
+            className="flex-1 rounded-2xl border border-border bg-card py-2 text-sm font-medium text-foreground transition hover:bg-muted"
+          >
+            Skip vibe
+          </button>
         </div>
-        <button
-          onClick={onSkipVibe}
-          className="w-full rounded-2xl border border-border bg-card py-2 text-sm font-medium text-foreground transition hover:bg-muted"
-        >
-          Skip vibe — let Parley infer
-        </button>
       </div>
     );
   }
