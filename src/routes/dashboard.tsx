@@ -1,12 +1,16 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useEffect, useState, type FormEvent } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
+import { chatWithAssistant } from "@/lib/chat.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+
+type ChatMessage = { role: "user" | "assistant"; content: string };
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -199,8 +203,97 @@ function DashboardPage() {
             </Button>
           </div>
         </form>
+
+        <AssistantPanel />
       </main>
     </div>
+  );
+}
+
+function AssistantPanel() {
+  const chat = useServerFn(chatWithAssistant);
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      role: "assistant",
+      content: "Hi! Ask me anything about running or growing your business.",
+    },
+  ]);
+  const [input, setInput] = useState("");
+  const [sending, setSending] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
+  }, [messages, sending]);
+
+  const send = async (e: FormEvent) => {
+    e.preventDefault();
+    const text = input.trim();
+    if (!text || sending) return;
+    const next: ChatMessage[] = [...messages, { role: "user", content: text }];
+    setMessages(next);
+    setInput("");
+    setSending(true);
+    try {
+      const res = await chat({ data: { messages: next } });
+      if (res.error || !res.reply) {
+        toast.error(res.error ?? "No response from AI.");
+        return;
+      }
+      setMessages((m) => [...m, { role: "assistant", content: res.reply! }]);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to reach the assistant.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <section className="mt-8 rounded-2xl border border-border bg-card p-5 sm:p-6">
+      <h2 className="text-lg font-semibold tracking-tight">AI assistant</h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Ask for marketing ideas, copy, or tips tailored to your business.
+      </p>
+
+      <div
+        ref={scrollRef}
+        className="mt-4 max-h-80 space-y-3 overflow-y-auto rounded-lg border border-border bg-background p-3"
+      >
+        {messages.map((m, i) => (
+          <div
+            key={i}
+            className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
+          >
+            <div
+              className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm ${
+                m.role === "user"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-foreground"
+              }`}
+            >
+              {m.content}
+            </div>
+          </div>
+        ))}
+        {sending && (
+          <div className="text-xs text-muted-foreground">Thinking…</div>
+        )}
+      </div>
+
+      <form onSubmit={send} className="mt-3 flex gap-2">
+        <Input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="e.g. Write a friendly Instagram caption for our weekend special"
+          maxLength={2000}
+          disabled={sending}
+        />
+        <Button type="submit" disabled={sending || !input.trim()}>
+          Send
+        </Button>
+      </form>
+    </section>
   );
 }
 
