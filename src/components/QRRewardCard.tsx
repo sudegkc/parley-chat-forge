@@ -17,6 +17,11 @@ export function QRRewardCard({ reward, claimed, onClaim }: Props) {
     }).then(() => setReady(true));
   }, [reward.code]);
 
+  const handleScan = () => {
+    if (claimed || !onClaim) return;
+    onClaim();
+  };
+
   return (
     <div className="animate-bubble-in w-[260px] overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
       <div className="border-b border-border bg-primary px-4 py-2.5 text-primary-foreground">
@@ -25,20 +30,29 @@ export function QRRewardCard({ reward, claimed, onClaim }: Props) {
       </div>
       <div className="flex flex-col items-center gap-2 px-4 py-4">
         <div className="text-xs text-muted-foreground">{reward.product}</div>
-        <div className={`relative rounded-lg border border-border bg-white p-2 ${claimed ? "opacity-30" : ""}`}>
-          <canvas ref={ref} className={ready ? "" : "opacity-0"} />
-        </div>
-        <div className="font-mono text-[11px] tracking-wider text-foreground">{reward.code}</div>
-        <div className="text-[10px] text-muted-foreground">Expires {reward.expiry}</div>
-      </div>
-      <div className="border-t border-border p-2">
         <button
-          onClick={onClaim}
+          type="button"
+          onClick={handleScan}
           disabled={claimed}
-          className="w-full rounded-xl bg-primary py-2 text-xs font-medium text-primary-foreground transition active:scale-[0.98] disabled:opacity-50"
+          aria-label={claimed ? "Reward claimed" : "Scan QR to claim"}
+          className="group relative rounded-lg border border-border bg-white p-2 transition active:scale-[0.98] disabled:cursor-default"
         >
-          {claimed ? "Claimed ✓" : "Claim reward"}
+          <canvas ref={ref} className={`${ready ? "" : "opacity-0"} ${claimed ? "opacity-20" : ""} transition-opacity`} />
+          {claimed && (
+            <div className="animate-bubble-in absolute inset-0 flex items-center justify-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="h-7 w-7">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+            </div>
+          )}
         </button>
+        <div className="font-mono text-[11px] tracking-wider text-foreground">{reward.code}</div>
+        <div className="text-[10px] text-muted-foreground">
+          {claimed ? "Claimed ✓" : "Tap QR to scan"}
+        </div>
+        <div className="text-[10px] text-muted-foreground">Expires {reward.expiry}</div>
       </div>
     </div>
   );
