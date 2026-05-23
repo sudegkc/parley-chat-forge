@@ -420,11 +420,8 @@ function ParleyDemo() {
     return [];
   }, [stage]);
 
-  const vibeSuggestions = useMemo(
-    () => suggestVibesFor(campaignRef.current.product, originalMessageRef.current),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [stage],
-  );
+
+
 
   const activeUser = matched.find((u) => u.id === activeUserId) ?? null;
   const activeMessages = activeUserId ? userChats[activeUserId] ?? [] : [];
